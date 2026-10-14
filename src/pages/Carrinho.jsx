@@ -1,21 +1,39 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import SugestaoItem from '../components/SugestaoItem'
-import { agruparItens, calcularTotal } from '../utils/carrinho'
+import { agruparItens, calcularTotal, temPrecoValido } from '../utils/carrinho'
 import { validarCupom } from '../utils/cupons'
 import { formatarPreco } from '../utils/formatarPreco'
+import { getStatusFrete } from '../utils/frete'
 
 export default function Carrinho({ carrinho, produtos, clienteAtual, onAdicionar, onRemover }) {
   const [codigoCupom, setCodigoCupom] = useState('')
   const [cupomAplicado, setCupomAplicado] = useState(null)
   const [mensagemCupom, setMensagemCupom] = useState('')
 
-  const itens = agruparItens(carrinho)
-  const total = calcularTotal(carrinho)
-  const totalComDesconto = cupomAplicado ? total * (1 - cupomAplicado.desconto) : total
+  const carrinhoValido = carrinho.filter(
+    (produto) => produto && temPrecoValido(produto) && Number(produto.estoque) > 0
+  )
 
+  const resumoPedido = useMemo(() => {
+    const total = calcularTotal(carrinhoValido)
+    const totalComDesconto = cupomAplicado ? total * (1 - cupomAplicado.desconto) : total
+
+    return {
+      total,
+      totalComDesconto,
+      statusFrete: getStatusFrete(totalComDesconto),
+    }
+  }, [carrinhoValido, cupomAplicado])
+
+  const itens = agruparItens(carrinhoValido)
   const sugestoes = produtos
-    .filter((produto) => !carrinho.find((item) => item.id === produto.id))
+    .filter(
+      (produto) =>
+        temPrecoValido(produto) &&
+        Number(produto.estoque) > 0 &&
+        !carrinhoValido.find((item) => Number(item.id) === Number(produto.id))
+    )
     .slice(0, 3)
 
   function aplicarCupom(evento) {
@@ -31,7 +49,7 @@ export default function Carrinho({ carrinho, produtos, clienteAtual, onAdicionar
     }
   }
 
-  if (carrinho.length === 0) {
+  if (carrinhoValido.length === 0) {
     return (
       <section>
         <h1>Carrinho</h1>
@@ -93,9 +111,18 @@ export default function Carrinho({ carrinho, produtos, clienteAtual, onAdicionar
               <span>{cupomAplicado.desconto * 100}%</span>
             </p>
           )}
+          <p
+            className={
+              resumoPedido.statusFrete.tipo === 'gratis'
+                ? 'resumo-frete resumo-frete-gratis'
+                : 'resumo-frete'
+            }
+          >
+            {resumoPedido.statusFrete.texto}
+          </p>
           <p className="total">
             <span>Total</span>
-            <span>{formatarPreco(totalComDesconto)}</span>
+            <span>{formatarPreco(resumoPedido.totalComDesconto)}</span>
           </p>
         </aside>
       </div>

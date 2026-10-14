@@ -1,8 +1,20 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { formatarPreco } from '../utils/formatarPreco'
+import { getStatusFrete } from '../utils/frete'
 
 export default function ProdutoCard({ produto, onAdicionar }) {
+  const [adicionado, setAdicionado] = useState(false)
   const esgotado = produto.estoque === 0
+  const precoValido =
+    Number.isFinite(Number(produto && produto.price)) && Number(produto.price) > 0
+  const statusFrete = precoValido ? getStatusFrete(produto.price) : null
+
+  function handleAdicionar() {
+    onAdicionar(produto)
+    setAdicionado(true)
+    window.setTimeout(() => setAdicionado(false), 1200)
+  }
 
   return (
     <article className="card">
@@ -25,12 +37,17 @@ export default function ProdutoCard({ produto, onAdicionar }) {
       </div>
 
       <div className="card-selos">
-        {produto.price > 100 && <span className="selo selo-frete">Frete grátis</span>}
+        {precoValido && statusFrete?.tipo === 'gratis' && (
+          <span className="selo selo-frete">Frete grátis</span>
+        )}
+        {precoValido && statusFrete?.tipo === 'faltando' && (
+          <span className="selo selo-alerta">{statusFrete.texto}</span>
+        )}
         {esgotado && <span className="selo selo-esgotado">Esgotado</span>}
       </div>
 
-      <button className="botao" onClick={() => onAdicionar(produto)} disabled={esgotado}>
-        Adicionar ao carrinho
+      <button className="botao" onClick={handleAdicionar} disabled={esgotado || !precoValido}>
+        {adicionado ? 'Adicionado' : 'Adicionar ao carrinho'}
       </button>
     </article>
   )

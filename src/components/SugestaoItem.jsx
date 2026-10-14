@@ -1,18 +1,54 @@
+import { useState } from 'react'
+import { Link } from 'react-router'
 import { formatarPreco } from '../utils/formatarPreco'
+import { getStatusFrete } from '../utils/frete'
 
 export default function SugestaoItem({ produto, onAdicionar }) {
+  const [adicionado, setAdicionado] = useState(false)
+  const esgotado = produto.estoque === 0
+  const precoValido =
+    Number.isFinite(Number(produto && produto.price)) && Number(produto.price) > 0
+  const statusFrete = precoValido ? getStatusFrete(produto.price) : null
+
+  function handleAdicionar() {
+    onAdicionar(produto)
+    setAdicionado(true)
+    window.setTimeout(() => setAdicionado(false), 1200)
+  }
+
   return (
-    <div className="sugestao">
-      <div className="sugestao-imagem-moldura">
-        <img src={produto.image} alt={produto.title} className="sugestao-imagem" />
+    <article className="card">
+      <Link to={`/produto/${produto.id}`} className="card-link">
+        <div className="card-imagem-moldura">
+          <img src={produto.image} alt={produto.title} className="card-imagem" />
+        </div>
+        <h3 className="card-titulo">{produto.title}</h3>
+      </Link>
+
+      <p className="card-avaliacao">
+        ★ {produto.rating.rate} <span>({produto.rating.count} avaliações)</span>
+      </p>
+
+      <div className="card-precos">
+        {produto.precoOriginal && (
+          <span className="preco-original">{formatarPreco(produto.precoOriginal)}</span>
+        )}
+        <span className="preco">{formatarPreco(produto.price)}</span>
       </div>
-      <div className="sugestao-info">
-        <p className="sugestao-titulo">{produto.title}</p>
-        <p className="preco preco-pequeno">{formatarPreco(produto.price)}</p>
+
+      <div className="card-selos">
+        {precoValido && statusFrete?.tipo === 'gratis' && (
+          <span className="selo selo-frete">Frete grátis</span>
+        )}
+        {precoValido && statusFrete?.tipo === 'faltando' && (
+          <span className="selo selo-alerta">{statusFrete.texto}</span>
+        )}
+        {esgotado && <span className="selo selo-esgotado">Esgotado</span>}
       </div>
-      <button className="botao botao-pequeno" onClick={() => onAdicionar(produto)}>
-        Comprar
+
+      <button className="botao" onClick={handleAdicionar} disabled={esgotado || !precoValido}>
+        {adicionado ? 'Adicionado' : 'Adicionar ao carrinho'}
       </button>
-    </div>
+    </article>
   )
 }

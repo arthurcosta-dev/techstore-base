@@ -14,10 +14,19 @@ export default function Loja({ produtos, onAdicionar }) {
   const [produtosVisiveis, setProdutosVisiveis] = useState(produtos)
 
   useEffect(() => {
+    const produtosDisponiveis = produtos.filter((produto) => {
+      const precoValido =
+        Number.isFinite(Number(produto && produto.price)) && Number(produto.price) > 0
+
+      return produto.estoque > 0 && precoValido
+    })
+
     if (categoria === 'todas') {
-      setProdutosVisiveis(produtos)
+      setProdutosVisiveis(produtosDisponiveis)
     } else {
-      setProdutosVisiveis(produtos.filter((produto) => produto.category === categoria))
+      setProdutosVisiveis(
+        produtosDisponiveis.filter((produto) => produto.category === categoria)
+      )
     }
   }, [categoria, produtos])
 

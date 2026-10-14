@@ -9,6 +9,9 @@ import Carrinho from './pages/Carrinho'
 import Estoque from './pages/Estoque'
 import { buscarProdutos } from './services/produtos'
 import { buscarClientes } from './services/clientes'
+import { temPrecoValido } from './utils/carrinho'
+
+const STORAGE_KEY = 'techstore-lista-espera'
 
 export default function App() {
   const [produtos, setProdutos] = useState([])
@@ -17,6 +20,18 @@ export default function App() {
   const [carrinho, setCarrinho] = useState([])
   const [clientes, setClientes] = useState([])
   const [clienteAtualId, setClienteAtualId] = useState(null)
+  const [listaEspera, setListaEspera] = useState(() => {
+    try {
+      const salvo = localStorage.getItem(STORAGE_KEY)
+      return salvo ? JSON.parse(salvo) : {}
+    } catch {
+      return {}
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(listaEspera))
+  }, [listaEspera])
 
   useEffect(() => {
     buscarProdutos()
@@ -31,21 +46,40 @@ export default function App() {
   }, [])
 
   function adicionarAoCarrinho(produto) {
-    setCarrinho(carrinho.concat(produto))
+    if (!produto || !temPrecoValido(produto)) {
+      return
+    }
+
+    setCarrinho((itensAtuais) => itensAtuais.concat(produto))
   }
 
   function removerUmaUnidade(produtoId) {
-    // Remove só a primeira unidade encontrada do produto
-    let removido = false
-    setCarrinho(
-      carrinho.filter((produto) => {
+    // Remove só a primeira unidade encontrada do produto usando o estado mais recente.
+    setCarrinho((itensAtuais) => {
+      let removido = false
+      return itensAtuais.filter((produto) => {
         if (!removido && produto.id === produtoId) {
           removido = true
           return false
         }
         return true
       })
-    )
+    })
+  }
+
+  function registrarInteresse(produtoId, nome, email) {
+    const id = Number(produtoId)
+    setListaEspera((atual) => ({
+      ...atual,
+      [id]: [
+        ...(atual[id] || []),
+        {
+          id: Date.now(),
+          nome,
+          email,
+        },
+      ],
+    }))
   }
 
   const clienteAtual = clientes.find((cliente) => cliente.id === clienteAtualId)
@@ -67,7 +101,14 @@ export default function App() {
             />
             <Route
               path="/produto/:id"
-              element={<PaginaProduto produtos={produtos} onAdicionar={adicionarAoCarrinho} />}
+              element={
+                <PaginaProduto
+                  produtos={produtos}
+                  onAdicionar={adicionarAoCarrinho}
+                  listaEspera={listaEspera}
+                  onRegistrarInteresse={registrarInteresse}
+                />
+              }
             />
             <Route
               path="/carrinho"
@@ -81,7 +122,10 @@ export default function App() {
                 />
               }
             />
-            <Route path="/estoque" element={<Estoque produtos={produtos} />} />
+            <Route
+              path="/estoque"
+              element={<Estoque produtos={produtos} listaEspera={listaEspera} />}
+            />
           </Routes>
         )}
       </main>
